@@ -138,6 +138,17 @@ The same `evo-semantic` service exposes deterministic operations to Build, Evolv
 
 The two navigation tools return metadata and guidance. Database queries and Python execution remain the responsibility of the benchmark's native tools.
 
+### Serving over HTTP
+
+The same server can run as a shared HTTP service instead of a spawned stdio process:
+
+    python -m evoontology.runtime.mcp_server --transport http --host 127.0.0.1 --port 8765 \
+        --store <workspace> --tools browse_semantics,resolve_semantics
+
+It implements the request/response subset of MCP Streamable HTTP on `POST /mcp` (JSON responses, no server push, no sessions). `--tools` exposes only the listed tools; other tools are absent from `tools/list` and rejected by `tools/call`. Mappings may carry structured `bindings` (`priority`, `kind`, `source_id`, `entity`, `field`, `semantic_filter`), which `resolve_semantics` returns sorted by priority.
+
+To check those bindings against the real data catalog, give `validate_semantics` an evo-query `catalog.json` snapshot (`catalog` argument). When `project.json` names a catalog under `data_source`, validation finds it automatically.
+
 ---
 
 ## 7. Validation gate

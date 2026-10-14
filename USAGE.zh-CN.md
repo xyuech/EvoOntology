@@ -174,6 +174,17 @@ workspace 为当前项目的 `.evoontology/`（零配置）。
 
 这两个工具返回的是元数据与指引，数据库查询与 Python 执行仍由 benchmark 原生工具负责。
 
+### 通过 HTTP 提供服务
+
+同一个 server 也可以作为共享的 HTTP 服务运行，而不是由客户端以 stdio 方式拉起：
+
+    python -m evoontology.runtime.mcp_server --transport http --host 127.0.0.1 --port 8765 \
+        --store <workspace> --tools browse_semantics,resolve_semantics
+
+它在 `POST /mcp` 上实现 MCP Streamable HTTP 的一问一答部分（返回 JSON，不做服务端推送，不维护会话）。`--tools` 只暴露列出的工具，其他工具不出现在 `tools/list` 中，调用时也会被拒绝。Mapping 可以带结构化的 `bindings`（`priority`、`kind`、`source_id`、`entity`、`field`、`semantic_filter`），`resolve_semantics` 按优先级排序后返回。
+
+若要把这些 binding 对照真实数据 catalog 校验，给 `validate_semantics` 传 evo-query 的 `catalog.json` 快照（`catalog` 参数）；当 `project.json` 的 `data_source` 里写了 catalog 路径时会自动发现。
+
 ---
 
 ## 7. validate 门禁（agent 自动）
