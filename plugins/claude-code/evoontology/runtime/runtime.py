@@ -7,6 +7,7 @@
 
 from __future__ import annotations
 
+import copy
 import re
 from typing import Any, Dict, List, Optional
 
@@ -414,11 +415,13 @@ class SemanticLayer:
             {
                 "id": m.id,
                 "term_id": m.term_id,
+                "database_source": m.database_source,
                 "table": m.table,
                 "column": m.column,
                 "semantic_filter": m.semantic_filter,
                 "aggregation_semantics": m.aggregation_semantics,
                 "grain": m.grain,
+                "bindings": copy.deepcopy(m.bindings),
                 "evidence_refs": list(m.evidence_refs),
             }
             for m in self.store.mappings.values()
