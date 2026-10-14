@@ -1,4 +1,8 @@
-"""Dependency-free stdio MCP server for the active EvoOntology workspace."""
+"""Dependency-free MCP server for the active EvoOntology workspace.
+
+Serves the semantic tools over either newline-delimited JSON-RPC on stdio (the
+default, used by the plugins) or a minimal Streamable HTTP endpoint.
+"""
 
 from __future__ import annotations
 
@@ -6,7 +10,7 @@ import argparse
 import json
 import sys
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, Iterable, Optional
 
 if __package__:
     from ..workspace import resolve_workspace, resolve_workspace_for_version
@@ -49,12 +53,39 @@ def force_utf8_stdio() -> None:
 
 
 class SemanticMCPServer:
-    """Serve the two semantic tools over newline-delimited JSON-RPC."""
+    """Serve the semantic tools over newline-delimited JSON-RPC or HTTP.
 
-    def __init__(self, store_path: str, version: str = ""):
+    ``tools`` is an optional allow-list: when given, only those tools appear in
+    ``tools/list`` and only those tools answer ``tools/call``. ``None`` exposes
+    everything, which keeps existing stdio clients working unchanged.
+    """
+
+    def __init__(self, store_path: str, version: str = "", tools: Optional[Iterable[str]] = None):
         self.store_path = store_path
         self.version = version
-        self.layer = SemanticLayer.load(store_path, version=version or None)
+        known = [tool["name"] for tool in TOOLS + OPERATIONS]
+        if tools is None:
+            self.exposed: Optional[frozenset] = None
+        else:
+            requested = [str(name).strip() for name in tools if str(name).strip()]
+            unknown = sorted(set(requested) - set(known))
+            if unknown:
+                raise ValueError(f"Unknown tools in allow-list: {', '.join(unknown)}")
+            self.exposed = frozenset(requested)
+
+    @property
+    def layer(self) -> SemanticLayer:
+        """The layer a request would see right now (pinned version or active).
+
+        Loading per access is deliberate: a long-running server picks up a newly
+        activated version without a restart, and concurrent HTTP requests never
+        share one layer, so a request pinned to one version cannot observe
+        another request's version.
+        """
+        return SemanticLayer.load(self.store_path, version=self.version or None)
+
+    def _exposed(self, name: str) -> bool:
+        return self.exposed is None or name in self.exposed
 
     def dispatch(self, method: str, params: Dict[str, Any]) -> Any:
         if method == "initialize":
@@ -66,10 +97,23 @@ class SemanticMCPServer:
         if method == "ping":
             return {}
         if method == "tools/list":
-            return {"tools": TOOLS + OPERATIONS}
+            return {"tools": [tool for tool in TOOLS + OPERATIONS if self._exposed(tool["name"])]}
         if method == "tools/call":
             name = str(params.get("name", ""))
             arguments = params.get("arguments", {})
+            if not self._exposed(name):
+                return {
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": json.dumps(
+                                {"status": "error", "message": f"Tool not exposed by this server: {name}"},
+                                ensure_ascii=False,
+                            ),
+                        }
+                    ],
+                    "isError": True,
+                }
             if name in {"browse_semantics", "resolve_semantics"}:
                 try:
                     semantic_args = dict(arguments or {})
@@ -84,10 +128,8 @@ class SemanticMCPServer:
                     else:
                         semantic_workspace = Path(self.store_path)
                         semantic_version = requested_version or self.version or None
-                    self.layer = SemanticLayer.load(
-                        str(semantic_workspace), version=semantic_version
-                    )
-                    result = self.layer.execute(name, semantic_args)
+                    layer = SemanticLayer.load(str(semantic_workspace), version=semantic_version)
+                    result = layer.execute(name, semantic_args)
                     result.setdefault("workspace", str(semantic_workspace.resolve()))
                     is_error = False
                 except Exception as exc:
@@ -128,19 +170,47 @@ class SemanticMCPServer:
             uri = str(params.get("uri", ""))
             if uri != _RESOURCE_URI:
                 raise ValueError(f"Unknown resource: {uri}")
-            self.layer = SemanticLayer.load(self.store_path, version=self.version or None)
+            layer = self.layer
             return {
                 "contents": [
                     {
                         "uri": _RESOURCE_URI,
                         "mimeType": "text/plain",
-                        "text": self.layer.manifest(),
+                        "text": layer.manifest(),
                     }
                 ]
             }
         if method == "shutdown":
             return None
         raise KeyError(method)
+
+    def handle_message(self, message: Any) -> Optional[Dict[str, Any]]:
+        """Answer one decoded JSON-RPC message; ``None`` means a notification."""
+        if not isinstance(message, dict):
+            return {
+                "jsonrpc": "2.0",
+                "id": None,
+                "error": {"code": INTERNAL_ERROR, "message": "request must be a JSON object"},
+            }
+        request_id = message.get("id")
+        if request_id is None:
+            return None  # notification: no response by design
+        try:
+            result = self.dispatch(str(message.get("method", "")), message.get("params") or {})
+            return {"jsonrpc": "2.0", "id": request_id, "result": result}
+        except KeyError as exc:
+            missing = exc.args[0] if exc.args else ""
+            return {
+                "jsonrpc": "2.0",
+                "id": request_id,
+                "error": {"code": METHOD_NOT_FOUND, "message": f"Method not found: {missing}"},
+            }
+        except Exception as exc:
+            return {
+                "jsonrpc": "2.0",
+                "id": request_id,
+                "error": {"code": INTERNAL_ERROR, "message": str(exc)},
+            }
 
     @staticmethod
     def _write(response: Dict[str, Any]) -> None:
@@ -167,36 +237,20 @@ class SemanticMCPServer:
             line = line.strip()
             if not line:
                 continue
-            request_id: Any = None
             try:
-                request = json.loads(line)
-                if not isinstance(request, dict):
-                    raise ValueError("request must be a JSON object")
-                request_id = request.get("id")
-                if request_id is None:
-                    continue  # notification: no response by design
-                result = self.dispatch(str(request.get("method", "")), request.get("params") or {})
-                response: Dict[str, Any] = {"jsonrpc": "2.0", "id": request_id, "result": result}
+                message = json.loads(line)
             except json.JSONDecodeError as exc:
-                response = {
-                    "jsonrpc": "2.0",
-                    "id": None,
-                    "error": {"code": PARSE_ERROR, "message": f"Parse error: {exc}"},
-                }
-            except KeyError as exc:
-                missing = exc.args[0] if exc.args else ""
-                response = {
-                    "jsonrpc": "2.0",
-                    "id": request_id,
-                    "error": {"code": METHOD_NOT_FOUND, "message": f"Method not found: {missing}"},
-                }
-            except Exception as exc:
-                response = {
-                    "jsonrpc": "2.0",
-                    "id": request_id,
-                    "error": {"code": INTERNAL_ERROR, "message": str(exc)},
-                }
-            self._write(response)
+                self._write(
+                    {
+                        "jsonrpc": "2.0",
+                        "id": None,
+                        "error": {"code": PARSE_ERROR, "message": f"Parse error: {exc}"},
+                    }
+                )
+                continue
+            response = self.handle_message(message)
+            if response is not None:
+                self._write(response)
 
 
 def main() -> None:
@@ -212,8 +266,48 @@ def main() -> None:
         default="",
         help="Explicit semantic version to serve (default: active version)",
     )
+    parser.add_argument(
+        "--transport",
+        choices=("stdio", "http"),
+        default="stdio",
+        help="Transport to serve on (default: stdio)",
+    )
+    parser.add_argument("--host", default="127.0.0.1", help="HTTP bind address (http transport)")
+    parser.add_argument("--port", type=int, default=8765, help="HTTP port (http transport)")
+    parser.add_argument(
+        "--tools",
+        default="",
+        help="Comma-separated tool names to expose (default: all tools)",
+    )
     args = parser.parse_args()
-    SemanticMCPServer(str(resolve_workspace(args.store)), version=args.version).run()
+    tools = [name for name in args.tools.split(",") if name.strip()] or None
+    try:
+        server = SemanticMCPServer(
+            str(resolve_workspace(args.store)), version=args.version, tools=tools
+        )
+    except ValueError as exc:
+        parser.error(str(exc))
+    if args.transport == "http":
+        # Imported here so the stdio path never depends on the HTTP module.
+        if __package__:
+            from .http_transport import make_http_server
+        else:
+            from evoontology.runtime.http_transport import make_http_server
+
+        httpd = make_http_server(server.handle_message, args.host, args.port)
+        print(
+            f"evo-semantic-mcp listening on http://{args.host}:{httpd.server_address[1]}/mcp",
+            file=sys.stderr,
+            flush=True,
+        )
+        try:
+            httpd.serve_forever()
+        except KeyboardInterrupt:
+            pass
+        finally:
+            httpd.server_close()
+    else:
+        server.run()
 
 
 if __name__ == "__main__":

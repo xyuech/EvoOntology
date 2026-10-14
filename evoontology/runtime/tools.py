@@ -53,7 +53,13 @@ TOOLS = [
     },
     {
         "name": "resolve_semantics",
-        "description": "Resolve selected concepts to grounded mappings and linked objects.",
+        "description": (
+            "Resolve selected concepts to grounded mappings and linked objects. "
+            "Each mapping carries `bindings` sorted by ascending `priority`; every "
+            "binding gives `kind`, `source_id`, `entity`, `field` and a structured "
+            "`semantic_filter`. `database_source`/`table`/`column` are equivalent "
+            "historical fields — prefer executing against `bindings`."
+        ),
         "inputSchema": {
             "type": "object",
             "properties": {
