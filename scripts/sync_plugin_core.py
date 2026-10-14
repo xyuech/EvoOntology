@@ -29,6 +29,7 @@ TARGETS = [
     REPO_ROOT / "plugins" / "evoontology-codex" / "evoontology",
 ]
 IGNORE_DIRS = {"__pycache__"}
+IGNORE_FILES = {".DS_Store"}
 
 
 def _sha256(path: Path) -> str:
@@ -42,7 +43,7 @@ def source_files() -> dict[str, str]:
         if not path.is_file():
             continue
         rel = path.relative_to(SOURCE)
-        if any(part in IGNORE_DIRS for part in rel.parts):
+        if any(part in IGNORE_DIRS for part in rel.parts) or rel.name in IGNORE_FILES:
             continue
         files[rel.as_posix()] = _sha256(path)
     return files
@@ -56,7 +57,7 @@ def target_files(target: Path) -> dict[str, str]:
         if not path.is_file():
             continue
         rel = path.relative_to(target)
-        if any(part in IGNORE_DIRS for part in rel.parts):
+        if any(part in IGNORE_DIRS for part in rel.parts) or rel.name in IGNORE_FILES:
             continue
         files[rel.as_posix()] = _sha256(path)
     return files
