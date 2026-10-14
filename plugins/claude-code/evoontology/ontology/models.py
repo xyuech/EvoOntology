@@ -79,6 +79,69 @@ class Term:
         )
 
 
+#: Binding kinds a mapping may point at; ``api`` is reserved for HTTP sources.
+BINDING_KINDS = ("sql", "api")
+
+#: Condition operators a structured ``semantic_filter`` may use.
+FILTER_OPS = frozenset(
+    {"=", "!=", ">", ">=", "<", "<=", "in", "not_in", "between", "like", "is_null", "not_null"}
+)
+
+
+def _priority(value: Any, default: int) -> int:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _filter_conditions(raw: Any) -> List[Dict[str, Any]]:
+    """Normalize a binding ``semantic_filter`` (object or list) to a list of conditions."""
+    if isinstance(raw, dict):
+        raw = [raw]
+    if not isinstance(raw, list):
+        return []
+    return [dict(item) for item in raw if isinstance(item, dict)]
+
+
+def _bindings(data: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """Return a mapping's bindings sorted by priority.
+
+    Structured ``bindings`` win. A legacy mapping that only names
+    ``table``/``column`` becomes one ``sql`` binding; its free-text
+    ``semantic_filter`` is not converted because it cannot be applied safely.
+    Only structure is normalized here -- semantic checks live in ``validate``.
+    """
+    raw = data.get("bindings")
+    bindings: List[Dict[str, Any]] = []
+    if isinstance(raw, list) and raw:
+        for index, item in enumerate(raw):
+            if not isinstance(item, dict):
+                continue
+            bindings.append(
+                {
+                    "priority": _priority(item.get("priority"), index + 1),
+                    "kind": str(item.get("kind") or "sql"),
+                    "source_id": str(item.get("source_id", "")),
+                    "entity": str(item.get("entity", "")),
+                    "field": str(item.get("field", "")),
+                    "semantic_filter": _filter_conditions(item.get("semantic_filter")),
+                }
+            )
+    elif data.get("table") and data.get("column"):
+        bindings.append(
+            {
+                "priority": 1,
+                "kind": "sql",
+                "source_id": str(data.get("database_source", "")),
+                "entity": str(data["table"]),
+                "field": str(data["column"]),
+                "semantic_filter": [],
+            }
+        )
+    return sorted(bindings, key=lambda binding: binding["priority"])
+
+
 @dataclass(frozen=True)
 class Mapping:
     id: str
@@ -93,6 +156,7 @@ class Mapping:
     evidence_refs: List[str] = field(default_factory=list)
     lifecycle_state: str = "active"
     confidence_level: str = "medium"
+    bindings: List[Dict[str, Any]] = field(default_factory=list)
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "Mapping":
@@ -117,6 +181,7 @@ class Mapping:
             evidence_refs=_mapping_evidence_refs(data),
             lifecycle_state=_lifecycle_state(data),
             confidence_level=_confidence_level({"confidence": confidence_raw}),
+            bindings=_bindings(data),
         )
 
 
