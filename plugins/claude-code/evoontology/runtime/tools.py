@@ -87,7 +87,10 @@ OPERATIONS = [
         "name": "validate_semantics",
         "description": (
             "Validate an ontology version: required files, JSON validity, "
-            "cross-record references, and runtime loadability."
+            "cross-record references, and runtime loadability. When an evo-query "
+            "catalog snapshot is given or discovered from project.json, every sql "
+            "binding's source_id/entity/field is also checked against the real data "
+            "catalog."
         ),
         "inputSchema": {
             "type": "object",
@@ -96,6 +99,14 @@ OPERATIONS = [
                 "version": {
                     "type": "string",
                     "description": "Version to validate; omit for the active version.",
+                },
+                "catalog": {
+                    "type": "string",
+                    "description": (
+                        "Optional path to an evo-query catalog.json snapshot. When given (or "
+                        "discovered from project.json), every sql binding's source_id/entity/field "
+                        "is checked against the real data catalog."
+                    ),
                 },
             },
             "required": ["workspace"],

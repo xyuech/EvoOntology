@@ -37,7 +37,8 @@ def _version(arguments: Dict[str, Any]) -> str | None:
 
 
 def validate_semantics(arguments: Dict[str, Any]) -> Dict[str, Any]:
-    return validate(str(_workspace(arguments)), version=_version(arguments))
+    catalog = str(arguments.get("catalog") or "").strip() or None
+    return validate(str(_workspace(arguments)), version=_version(arguments), catalog=catalog)
 
 
 def visualize_ontology(arguments: Dict[str, Any]) -> Dict[str, Any]:
