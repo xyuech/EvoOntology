@@ -142,6 +142,40 @@ def _bindings(data: Dict[str, Any]) -> List[Dict[str, Any]]:
     return sorted(bindings, key=lambda binding: binding["priority"])
 
 
+def _endpoint(raw: Any) -> Dict[str, str]:
+    item = raw if isinstance(raw, dict) else {}
+    return {
+        "source_id": str(item.get("source_id", "")),
+        "entity": str(item.get("entity", "")),
+        "field": str(item.get("field", "")),
+    }
+
+
+def _join_keys(data: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """Return a relation's join path, one hop per item, in walking order.
+
+    The first hop leaves a table the source term is bound to and the last one
+    arrives at a table the target term is bound to. Only structure is
+    normalized here -- continuity, anchoring and catalog checks live in
+    ``validate``.
+    """
+    raw = data.get("join_keys")
+    if not isinstance(raw, list):
+        return []
+    hops: List[Dict[str, Any]] = []
+    for item in raw:
+        if not isinstance(item, dict):
+            continue
+        hops.append(
+            {
+                "left": _endpoint(item.get("left")),
+                "right": _endpoint(item.get("right")),
+                "transform": item.get("transform"),
+            }
+        )
+    return hops
+
+
 @dataclass(frozen=True)
 class Mapping:
     id: str
@@ -193,8 +227,10 @@ class Relation:
     target: str = ""
     connection_condition: str = ""
     description: str = ""
+    inverse_description: str = ""
     evidence_refs: List[str] = field(default_factory=list)
     lifecycle_state: str = "active"
+    join_keys: List[Dict[str, Any]] = field(default_factory=list)
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "Relation":
@@ -205,8 +241,10 @@ class Relation:
             target=str(data.get("target", data.get("to_term", ""))),
             connection_condition=str(data.get("connection_condition", "")),
             description=str(data.get("description", "")),
+            inverse_description=str(data.get("inverse_description", "")),
             evidence_refs=_evidence_refs(data),
             lifecycle_state=_lifecycle_state(data),
+            join_keys=_join_keys(data),
         )
 
 
