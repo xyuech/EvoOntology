@@ -58,7 +58,12 @@ TOOLS = [
             "Each mapping carries `bindings` sorted by ascending `priority`; every "
             "binding gives `kind`, `source_id`, `entity`, `field` and a structured "
             "`semantic_filter`. `database_source`/`table`/`column` are equivalent "
-            "historical fields — prefer executing against `bindings`."
+            "historical fields — prefer executing against `bindings`. Each relation "
+            "carries `description` (read from `source` to `target`), an optional "
+            "`inverse_description` (read from `target` back to `source`) and "
+            "`join_keys`: the ordered join path from the source term's table to the "
+            "target term's table, one equality per hop with `left`/`right` given as "
+            "`source_id`/`entity`/`field`; walk it backwards for the inverse reading."
         ),
         "inputSchema": {
             "type": "object",

@@ -226,7 +226,7 @@ class SemanticLayer:
             name = f"{getattr(item, 'term_id', '')} -> {getattr(item, 'table', '')}"
         elif not name and kind == "relation":
             relation_type = getattr(item, "relation_type", "")
-            name = relation_type or (
+            name = getattr(item, "description", "") or relation_type or (
                 f"{getattr(item, 'source', '')} -> {getattr(item, 'target', '')}"
             )
         elif not name and kind == "constraint":
@@ -244,6 +244,8 @@ class SemanticLayer:
                         name,
                         str(getattr(item, "definition", "") or ""),
                         str(getattr(item, "description", "") or ""),
+                        str(getattr(item, "inverse_description", "") or ""),
+                        str(getattr(item, "connection_condition", "") or ""),
                         " ".join(getattr(item, "aliases", []) or []),
                         str(getattr(item, "term_id", "") or ""),
                         str(getattr(item, "source", "") or ""),
@@ -436,7 +438,10 @@ class SemanticLayer:
                 "relation_type": r.relation_type,
                 "source": r.source,
                 "target": r.target,
+                "description": r.description or "",
+                "inverse_description": r.inverse_description or "",
                 "connection_condition": r.connection_condition or "",
+                "join_keys": copy.deepcopy(r.join_keys),
                 "evidence_refs": list(r.evidence_refs),
             }
             for r in self.store.relations.values()

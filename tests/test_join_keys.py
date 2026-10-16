@@ -105,3 +105,35 @@ def test_malformed_hops_are_skipped_not_fatal():
          "right": {"source_id": "", "entity": "", "field": ""},
          "transform": None}
     ]
+
+
+# --- resolve and browse ----------------------------------------------------
+
+
+def test_resolve_returns_the_join_path_from_either_end(tmp_path):
+    layer = SemanticLayer.load(str(_workspace(tmp_path, [ALARM_ON_TRAIL])))
+
+    for term_id in ("t_alarm", "t_trail"):
+        (relation,) = layer.resolve(mentions=[term_id])["results"][0]["relations"]
+        assert relation["description"] == "告警影响的业务"
+        assert relation["inverse_description"] == "业务上的告警"
+        assert relation["join_keys"][0]["left"] == _end("t_alarm_info", "link_unique_id")
+        assert relation["join_keys"][1]["right"] == _end("t_trail_info", "uuid")
+
+
+def test_browse_finds_a_relation_by_its_inverse_reading(tmp_path):
+    layer = SemanticLayer.load(str(_workspace(tmp_path, [ALARM_ON_TRAIL])))
+
+    (item,) = layer.browse(query="业务上的告警", kind="relation")["items"]
+
+    assert item["id"] == "r_alarm_on_trail"
+    assert item["name"] == "告警影响的业务"
+
+
+def test_resolve_tool_description_explains_the_join_path():
+    from evoontology.runtime.tools import TOOLS
+
+    tool = next(tool for tool in TOOLS if tool["name"] == "resolve_semantics")
+
+    assert "join_keys" in tool["description"]
+    assert "inverse_description" in tool["description"]
