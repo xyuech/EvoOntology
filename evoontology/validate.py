@@ -19,7 +19,7 @@ import json
 from pathlib import Path
 from typing import Any, Dict, List
 
-from evoontology.ontology.models import BINDING_KINDS, FILTER_OPS
+from evoontology.ontology.models import BINDING_KINDS, FILTER_OPS, Mapping
 from evoontology.ontology.store import VERSION_FILES, SemanticStore
 from evoontology.workspace import PathLike, resolve_workspace, validate_path_component
 
@@ -68,6 +68,61 @@ def _binding_errors(obj_id: str, item: Dict[str, Any]) -> List[str]:
     return errors
 
 
+def _join_key_errors(
+    obj_id: str, item: Dict[str, Any], term_tables: Dict[str, set]
+) -> List[str]:
+    """Structure, continuity and anchoring of a relation's optional ``join_keys``."""
+    raw = item.get("join_keys")
+    if raw is None:
+        return []
+    label = f"relation {obj_id}"
+    if not isinstance(raw, list):
+        return [f"{label}: join_keys must be a list"]
+    errors: List[str] = []
+    hops: List[tuple] = []
+    for index, hop in enumerate(raw):
+        where = f"{label}: join_keys[{index}]"
+        if not isinstance(hop, dict):
+            errors.append(f"{where} must be an object")
+            continue
+        ends = []
+        for side in ("left", "right"):
+            end = hop.get(side)
+            if not isinstance(end, dict):
+                errors.append(f"{where}.{side} must be an object")
+                ends.append(None)
+                continue
+            for key in ("source_id", "entity", "field"):
+                value = end.get(key)
+                if not isinstance(value, str) or not value.strip():
+                    errors.append(f"{where}.{side}.{key} must be a non-empty string")
+            ends.append((str(end.get("source_id", "")), str(end.get("entity", ""))))
+        if hop.get("transform") is not None:
+            errors.append(f"{where}.transform is not supported yet; omit it or use null")
+        hops.append(tuple(ends))
+    if errors or not hops:
+        return errors
+    for index in range(1, len(hops)):
+        previous, current = hops[index - 1][1], hops[index][0]
+        if previous != current:
+            errors.append(
+                f"{label}: join_keys[{index}].left.entity {current[1]!r} does not continue "
+                f"from join_keys[{index - 1}].right.entity {previous[1]!r}"
+            )
+    last = len(hops) - 1
+    for end, role, where in (
+        (hops[0][0], "source", "join_keys[0].left"),
+        (hops[-1][1], "target", f"join_keys[{last}].right"),
+    ):
+        term_id = str(item.get(role, ""))
+        tables = term_tables.get(term_id, set())
+        if tables and end not in tables:
+            errors.append(
+                f"{label}: {where} '{end[0]}.{end[1]}' is not a table of {role} term {term_id!r}"
+            )
+    return errors
+
+
 def load_catalog(path: PathLike) -> Dict[str, Any]:
     """Read and structurally check an evo-query catalog snapshot.
 
@@ -96,15 +151,8 @@ def load_catalog(path: PathLike) -> Dict[str, Any]:
     return catalog
 
 
-def _catalog_errors(
-    raw_mappings: Dict[str, dict], catalog: Dict[str, Any]
-) -> tuple[List[str], int]:
-    """Check every ``sql`` binding against the catalog's real names.
-
-    Returns ``(errors, checked)``; ``api`` bindings are out of scope and are
-    counted as neither. Comparison is case-sensitive and literal, because
-    physical names are (``TBL_INV_TRAIL``).
-    """
+def _catalog_index(catalog: Dict[str, Any]) -> Dict[str, Dict[str, set]]:
+    """``{source_id: {entity: {field}}}`` from a catalog snapshot."""
     sources: Dict[str, Dict[str, set]] = {}
     for source in catalog.get("sources", []):
         entities: Dict[str, set] = {}
@@ -116,8 +164,45 @@ def _catalog_errors(
                 str(name) for name in (fields if isinstance(fields, list) else [])
             }
         sources[str(source.get("source_id", ""))] = entities
+    return sources
 
-    known_sources = sorted(sources)
+
+def _endpoint_errors(
+    where: str, end: Dict[str, Any], sources: Dict[str, Dict[str, set]]
+) -> List[str]:
+    """Literal, case-sensitive lookup of one ``source_id/entity/field`` triple."""
+    source_id = str(end.get("source_id", ""))
+    entity = str(end.get("entity", ""))
+    field = str(end.get("field", ""))
+    if source_id not in sources:
+        return [
+            f"{where}.source_id {source_id!r} not found in catalog "
+            f"(known: {', '.join(sorted(sources))})"
+        ]
+    entities = sources[source_id]
+    if entity not in entities:
+        return [
+            f"{where}.entity {entity!r} not found in source {source_id!r} "
+            f"(known: {', '.join(sorted(entities))})"
+        ]
+    if field not in entities[entity]:
+        return [
+            f"{where}.field {field!r} not found in entity "
+            f"'{source_id}.{entity}' (known: {', '.join(sorted(entities[entity]))})"
+        ]
+    return []
+
+
+def _catalog_errors(
+    raw_mappings: Dict[str, dict], catalog: Dict[str, Any]
+) -> tuple[List[str], int]:
+    """Check every ``sql`` binding against the catalog's real names.
+
+    Returns ``(errors, checked)``; ``api`` bindings are out of scope and are
+    counted as neither. Comparison is case-sensitive and literal, because
+    physical names are (``TBL_INV_TRAIL``).
+    """
+    sources = _catalog_index(catalog)
     errors: List[str] = []
     checked = 0
     for obj_id, item in raw_mappings.items():
@@ -128,27 +213,33 @@ def _catalog_errors(
             if not isinstance(binding, dict) or binding.get("kind") != "sql":
                 continue
             checked += 1
-            source_id = str(binding.get("source_id", ""))
-            entity = str(binding.get("entity", ""))
-            field = str(binding.get("field", ""))
-            where = f"mapping {obj_id}: bindings[{index}]"
-            if source_id not in sources:
-                errors.append(
-                    f"{where}.source_id {source_id!r} not found in catalog "
-                    f"(known: {', '.join(known_sources)})"
-                )
+            errors.extend(
+                _endpoint_errors(f"mapping {obj_id}: bindings[{index}]", binding, sources)
+            )
+    return errors, checked
+
+
+def _join_key_catalog_errors(
+    raw_relations: Dict[str, dict], catalog: Dict[str, Any]
+) -> tuple[List[str], int]:
+    """Check both ends of every join hop the same way bindings are checked."""
+    sources = _catalog_index(catalog)
+    errors: List[str] = []
+    checked = 0
+    for obj_id, item in raw_relations.items():
+        hops = item.get("join_keys")
+        if not isinstance(hops, list):
+            continue
+        for index, hop in enumerate(hops):
+            if not isinstance(hop, dict):
                 continue
-            entities = sources[source_id]
-            if entity not in entities:
-                errors.append(
-                    f"{where}.entity {entity!r} not found in source {source_id!r} "
-                    f"(known: {', '.join(sorted(entities))})"
-                )
-                continue
-            if field not in entities[entity]:
-                errors.append(
-                    f"{where}.field {field!r} not found in entity "
-                    f"'{source_id}.{entity}' (known: {', '.join(sorted(entities[entity]))})"
+            for side in ("left", "right"):
+                end = hop.get(side)
+                if not isinstance(end, dict):
+                    continue
+                checked += 1
+                errors.extend(
+                    _endpoint_errors(f"relation {obj_id}: join_keys[{index}].{side}", end, sources)
                 )
     return errors, checked
 
@@ -266,6 +357,12 @@ def validate(
     term_ids = set(raw.get("terms.json", {}))
     mapping_ids = set(raw.get("mappings.json", {}))
     evidence_ids = set(raw.get("evidence.json", {}))
+    term_tables: Dict[str, set] = {}
+    for item in raw.get("mappings.json", {}).values():
+        for binding in Mapping.from_dict(item).bindings:
+            term_tables.setdefault(str(item.get("term_id", "")), set()).add(
+                (binding["source_id"], binding["entity"])
+            )
 
     def _check_refs(field_value, *, label: str, allowed: set):
         refs = field_value
@@ -285,6 +382,7 @@ def validate(
             if ref and ref not in term_ids:
                 errors.append(f"relation {obj_id}: unresolved {end} {ref!r}")
         _check_refs(item.get("evidence"), label=f"relation {obj_id}", allowed=evidence_ids)
+        errors.extend(_join_key_errors(obj_id, item, term_tables))
     def _mapping_evidence(item: dict):
         refs = item.get("evidence_refs", [])
         if refs:
@@ -328,7 +426,15 @@ def validate(
         if loaded is not None:
             catalog_errors, checked = _catalog_errors(raw.get("mappings.json", {}), loaded)
             errors.extend(catalog_errors)
-            catalog_info = {"path": catalog_path, "checked": checked}
+            join_errors, join_checked = _join_key_catalog_errors(
+                raw.get("relations.json", {}), loaded
+            )
+            errors.extend(join_errors)
+            catalog_info = {
+                "path": catalog_path,
+                "checked": checked,
+                "checked_join_keys": join_checked,
+            }
 
     # The runtime must be able to load the store.
     if not errors:

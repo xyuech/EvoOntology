@@ -137,3 +137,95 @@ def test_resolve_tool_description_explains_the_join_path():
 
     assert "join_keys" in tool["description"]
     assert "inverse_description" in tool["description"]
+
+
+# --- validation ------------------------------------------------------------
+
+
+def _errors(tmp_path, relation):
+    report = validate(str(_workspace(tmp_path, [relation])), version="ontology_v1", catalog=CATALOG)
+    return report, "\n".join(report["errors"])
+
+
+def test_validate_accepts_a_two_hop_path(tmp_path):
+    report, errors = _errors(tmp_path, ALARM_ON_TRAIL)
+
+    assert report["passed"] is True, errors
+    assert report["catalog"]["checked_join_keys"] == 4
+
+
+def test_validate_reports_a_path_that_breaks(tmp_path):
+    relation = _copy(ALARM_ON_TRAIL)
+    relation["join_keys"][1]["left"] = _end("t_ne_info", "uuid")
+
+    _, errors = _errors(tmp_path, relation)
+
+    assert (
+        "relation r_alarm_on_trail: join_keys[1].left.entity 't_ne_info' does not continue "
+        "from join_keys[0].right.entity 't_trail_link_relation'" in errors
+    )
+
+
+def test_validate_reports_an_end_that_misses_the_catalog(tmp_path):
+    relation = _copy(ALARM_ON_TRAIL)
+    relation["join_keys"][1]["right"] = _end("t_trail_info", "uid")
+
+    _, errors = _errors(tmp_path, relation)
+
+    assert (
+        "relation r_alarm_on_trail: join_keys[1].right.field 'uid' not found in entity "
+        "'availabilityvaluedb.t_trail_info'" in errors
+    )
+
+
+def test_validate_anchors_the_path_to_both_terms(tmp_path):
+    relation = _copy(ALARM_ON_TRAIL)
+    relation["source"], relation["target"] = "t_trail", "t_alarm"
+
+    _, errors = _errors(tmp_path, relation)
+
+    assert (
+        "relation r_alarm_on_trail: join_keys[0].left 'availabilityvaluedb.t_alarm_info' "
+        "is not a table of source term 't_trail'" in errors
+    )
+    assert (
+        "relation r_alarm_on_trail: join_keys[1].right 'availabilityvaluedb.t_trail_info' "
+        "is not a table of target term 't_alarm'" in errors
+    )
+
+
+def test_validate_rejects_a_transform(tmp_path):
+    relation = _copy(ALARM_ON_TRAIL)
+    relation["join_keys"][0]["transform"] = "name_to_id"
+
+    _, errors = _errors(tmp_path, relation)
+
+    assert (
+        "relation r_alarm_on_trail: join_keys[0].transform is not supported yet; "
+        "omit it or use null" in errors
+    )
+
+
+def test_validate_rejects_malformed_join_keys(tmp_path):
+    not_a_list = _copy(ALARM_ON_TRAIL)
+    not_a_list["join_keys"] = {"left": {}}
+    _, errors = _errors(tmp_path / "a", not_a_list)
+    assert "relation r_alarm_on_trail: join_keys must be a list" in errors
+
+    bad_ends = _copy(ALARM_ON_TRAIL)
+    bad_ends["join_keys"] = [
+        {"left": _end("t_alarm_info", "link_unique_id", source_id=""), "right": "x"}
+    ]
+    _, errors = _errors(tmp_path / "b", bad_ends)
+    assert "relation r_alarm_on_trail: join_keys[0].left.source_id must be a non-empty string" in errors
+    assert "relation r_alarm_on_trail: join_keys[0].right must be an object" in errors
+
+
+def test_relations_without_join_keys_still_pass(tmp_path):
+    legacy = {"id": "r_old", "source": "t_alarm", "target": "t_trail",
+              "relation_type": "association", "connection_condition": "text only"}
+
+    report, errors = _errors(tmp_path, legacy)
+
+    assert report["passed"] is True, errors
+    assert report["catalog"]["checked_join_keys"] == 0
