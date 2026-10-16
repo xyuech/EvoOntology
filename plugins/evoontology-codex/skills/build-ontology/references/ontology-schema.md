@@ -239,7 +239,20 @@ connection_condition:
   (e.g., "company_id links financial events across filing periods").
 
 description:
-  Explanation of the relationship
+  Explanation of the relationship, read from source to target
+
+inverse_description:
+  Optional reading of the same relation from target back to source
+  (e.g., description "告警影响的业务", inverse_description "业务上的告警")
+
+join_keys:
+  Optional structured grounding of the relation, the way bindings ground a
+  Term. An ordered list of hops; each hop is
+  {left: {source_id, entity, field}, right: {source_id, entity, field}}.
+  The first hop leaves a table the source Term is bound to, the last one
+  arrives at a table the target Term is bound to, and each hop starts in the
+  table where the previous one ended. Walk it backwards for the inverse
+  reading. `transform` is not supported yet (omit it or use null).
 
 evidence:
   Supporting evidence
@@ -398,7 +411,7 @@ When assigning `relation_type`, evaluate in this order:
 | `derivation` not used | Metrics with computational relationships must use `derivation` |
 | Free-text types like `affects`, `belongs_to` | Must use one of the five controlled types |
 | `connection_condition` contains SQL-specific syntax | Describe the connection semantically; do not write SQL templates |
-| Table JOIN relationships stored as semantic Relations | JOINs are physical table connections, not ontological relations; use `association` for concept-level relatedness instead |
+| A bare table JOIN stored as a semantic Relation | A JOIN alone is not a relation. Model the business relation between two Terms with one of the five types and put the physical path in `join_keys`, the way bindings ground a Term; bridge tables appear only inside the path |
 
 ---
 

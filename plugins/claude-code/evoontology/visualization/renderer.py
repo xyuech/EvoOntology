@@ -315,8 +315,10 @@ def build_content_elements(store: SemanticStore) -> Dict[str, Any]:
                     ("Type", relation.relation_type),
                     ("Source", term_names.get(relation.source, relation.source)),
                     ("Target", term_names.get(relation.target, relation.target)),
-                    ("Connection", relation.connection_condition),
                     ("Description", relation.description),
+                    ("Inverse", relation.inverse_description),
+                    ("Join path", _join_path(relation.join_keys)),
+                    ("Connection", relation.connection_condition),
                     ("Evidence", relation.evidence_refs),
                     ("Lifecycle", relation.lifecycle_state),
                 ]),
@@ -497,6 +499,15 @@ def render_html(data: Dict[str, Any]) -> str:
 
 
 # ---- internals --------------------------------------------------------------
+
+
+def _join_path(join_keys) -> str:
+    """``a.x = b.y; b.z = c.w`` for a relation's join hops; empty when there are none."""
+    return "; ".join(
+        f"{hop['left'].get('entity', '')}.{hop['left'].get('field', '')} = "
+        f"{hop['right'].get('entity', '')}.{hop['right'].get('field', '')}"
+        for hop in join_keys
+    )
 
 
 def _pairs(items) -> List[List[Any]]:

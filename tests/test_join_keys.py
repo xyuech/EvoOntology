@@ -229,3 +229,21 @@ def test_relations_without_join_keys_still_pass(tmp_path):
 
     assert report["passed"] is True, errors
     assert report["catalog"]["checked_join_keys"] == 0
+
+
+# --- display ---------------------------------------------------------------
+
+
+def test_relation_detail_shows_both_readings_and_the_join_path(tmp_path):
+    from evoontology.visualization.renderer import build_content_elements
+
+    store = SemanticStore.load(_workspace(tmp_path, [ALARM_ON_TRAIL]))
+    (edge,) = [e["data"] for e in build_content_elements(store)["edges"]
+               if e["data"]["family"] == "relation"]
+    detail = dict(edge["detail"])
+
+    assert detail["Inverse"] == "业务上的告警"
+    assert detail["Join path"] == (
+        "t_alarm_info.link_unique_id = t_trail_link_relation.link_unique_id; "
+        "t_trail_link_relation.trail_id = t_trail_info.uuid"
+    )
