@@ -703,3 +703,23 @@ def test_missing_explicit_version_error(workspace):
     with pytest.raises(FileNotFoundError, match="Ontology version 'ontology_v9' not found"):
         visualize(workspace=workspace, version="ontology_v9", open_browser=False)
     assert not (workspace / "visualizations" / "ontology_v9.html").exists()
+
+
+def test_node_size_slider_scales_every_node_family(workspace):
+    html = visualize(workspace=workspace, open_browser=False).read_text(encoding="utf-8")
+
+    assert '<input type="range" id="node-size" min="50" max="300" step="10" value="200">' in html
+    assert "'action.nodeSize': '节点大小'" in html and "'action.nodeSize': 'Node size'" in html
+    assert "var NODE_SCALE_DEFAULT = 2;" in html
+    style = html.split("function buildStyle(s) {", 1)[1].split("var nodeScale = loadNodeScale();", 1)[0]
+    for family in ("term", "mapping", "constraint", "evidence"):
+        assert f'node[family="{family}"]' in style
+    assert "'font-size': 17 * s" in style and "'padding': px(12 * s)" in style
+    assert "function (ele) { return ele.data('w') * s; }" in style
+    assert "'width': 'data(w)'" not in html
+    assert "window.localStorage.getItem(NODE_SCALE_KEY)" in html
+    assert "instance.style().fromJson(STYLE).update();" in html
+    # the layout is computed at 100%, so a larger scale enlarges nodes instead of spreading the layout
+    run_layout = html.split("function runLayout(fitAfter) {", 1)[1].split("function syncFilterBoxes", 1)[0]
+    assert "atBaseNodeSize(cy, function () {" in run_layout
+    assert "graph.style().fromJson(buildStyle(1)).update();" in html

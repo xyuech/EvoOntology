@@ -238,6 +238,10 @@
   #btn-fit { min-width: 78px; }
   #btn-expand-all, #btn-collapse-all { min-width: 96px; }
   #btn-reset { min-width: 112px; }
+  .node-size { display: flex; align-items: center; gap: 7px; padding: 0 4px 0 8px; font-size: 13px;
+               color: var(--muted); white-space: nowrap; }
+  .node-size input { width: 104px; accent-color: var(--accent); }
+  #node-size-value { min-width: 38px; font-variant-numeric: tabular-nums; text-align: right; }
   #filters { bottom: 16px; left: 16px; width: 220px; display: flex; flex-direction: column; gap: 7px; }
   #filters label { display: flex; align-items: center; gap: 8px; font-size: 14px; cursor: pointer; user-select: none; }
   #filters label.subtle { color: var(--muted); border-top: 1px dashed var(--border-strong); padding-top: 7px; margin-top: 3px; }
@@ -570,6 +574,7 @@
           <button id="btn-expand-all" type="button" data-i18n="action.expandAll" data-i18n-title="action.expandAll.title" title="展开所有 Term 的关联对象">展开全部</button>
           <button id="btn-collapse-all" type="button" data-i18n="action.collapseAll" data-i18n-title="action.collapseAll.title" title="收起所有关联对象，仅保留 Term 与语义关系">收起全部</button>
           <button id="btn-reset" type="button" data-i18n="action.reset" data-i18n-title="action.reset.title" title="清空交互状态并恢复首次打开的视图">恢复初始</button>
+          <label class="node-size" data-i18n-title="action.nodeSize.title" title="放大或缩小节点和节点文字，会记住上次的设置"><span data-i18n="action.nodeSize">节点大小</span><input type="range" id="node-size" min="50" max="300" step="10" value="200"><span id="node-size-value">200%</span></label>
         </div>
         <div class="glass" id="filters">
           <div class="glass-title" data-i18n="filters.title">显示内容</div>
@@ -635,7 +640,7 @@
         <li><span data-i18n="welcome.tips.1">点击图中的节点、连线或 Schema / Tool 卡片，在右侧面板查看详情并定位对象</span></li>
         <li><span data-i18n="welcome.tips.2">顶栏可搜索任意对象；若出现警告徽标，点击可查看因引用无法解析而跳过的记录</span></li>
         <li><span data-i18n="welcome.tips.3">双击 Term 或使用“展开全部 / 收起全部”控制关联对象；显示过滤器可控制关系、引用及各类非核心节点</span></li>
-        <li><span data-i18n="welcome.tips.4">“适配视图”只缩放并居中当前可见内容；“恢复初始”会清空交互状态并恢复首次打开的布局</span></li>
+        <li><span data-i18n="welcome.tips.4">“适配视图”只缩放并居中当前可见内容；“恢复初始”会清空交互状态并恢复首次打开的布局；“节点大小”滑块放大或缩小节点和文字，布局保持不变，松开滑块时会把挤在一起的节点推开</span></li>
         <li><span data-i18n="welcome.tips.5">拖动空白处可平移，滚轮可缩放；可在右上角或本指南中切换中文和英文</span></li>
         <li><span data-i18n="welcome.tips.6">“不再自动显示”只关闭后续开屏；仍可通过顶部“?”或介绍条中的“使用指南”重新打开</span></li>
       </ul>
@@ -729,6 +734,8 @@ window.EVO_DATA = __DATA_JSON__;
       'action.collapseAll.title': '收起所有关联对象，仅保留 Term 与语义关系',
       'action.reset': '恢复初始',
       'action.reset.title': '清空交互状态并恢复首次打开的视图',
+      'action.nodeSize': '节点大小',
+      'action.nodeSize.title': '放大或缩小节点和节点文字，会记住上次的设置',
       'filters.title': '显示内容',
       'filters.relations': '语义关系',
       'filters.refs': '结构引用',
@@ -790,7 +797,7 @@ window.EVO_DATA = __DATA_JSON__;
       'welcome.tips.1': '点击图中的节点、连线或 Schema / Tool 卡片，在右侧面板查看详情并定位对象',
       'welcome.tips.2': '顶栏可搜索任意对象；若出现警告徽标，点击可查看因引用无法解析而跳过的记录',
       'welcome.tips.3': '双击 Term 或使用“展开全部 / 收起全部”控制关联对象；显示过滤器可控制关系、引用及各类非核心节点',
-      'welcome.tips.4': '“适配视图”只缩放并居中当前可见内容；“恢复初始”会清空交互状态并恢复首次打开的布局',
+      'welcome.tips.4': '“适配视图”只缩放并居中当前可见内容；“恢复初始”会清空交互状态并恢复首次打开的布局；“节点大小”滑块放大或缩小节点和文字，布局保持不变，松开滑块时会把挤在一起的节点推开',
       'welcome.tips.5': '拖动空白处可平移，滚轮可缩放；可在右上角或本指南中切换中文和英文',
       'welcome.tips.6': '“不再自动显示”只关闭后续开屏；仍可通过顶部“?”或介绍条中的“使用指南”重新打开',
       'welcome.hide': '不再自动显示',
@@ -851,6 +858,8 @@ window.EVO_DATA = __DATA_JSON__;
       'action.collapseAll.title': 'Collapse all related objects, keeping only Terms and semantic relations',
       'action.reset': 'Restore initial',
       'action.reset.title': 'Clear interaction state and restore the initial view',
+      'action.nodeSize': 'Node size',
+      'action.nodeSize.title': 'Scale nodes and their text; your setting is remembered',
       'filters.title': 'Display filters',
       'filters.relations': 'Semantic relations',
       'filters.refs': 'Structural references',
@@ -912,7 +921,7 @@ window.EVO_DATA = __DATA_JSON__;
       'welcome.tips.1': 'Select a graph node, edge, or Schema / Tool card to inspect details and locate the object from the right-hand panel',
       'welcome.tips.2': 'Search any object from the top bar; when a warning badge appears, select it to inspect records skipped because their references could not be resolved',
       'welcome.tips.3': 'Double-click a Term or use Expand all / Collapse all to control related objects; display filters control relations, references and each non-core node family',
-      'welcome.tips.4': 'Fit view only zooms and centers the currently visible content; Restore initial clears interaction state and returns to the first-open layout',
+      'welcome.tips.4': 'Fit view only zooms and centers the currently visible content; Restore initial clears interaction state and returns to the first-open layout; the Node size slider scales nodes and their text without changing the layout, and pushes crowded nodes apart when released',
       'welcome.tips.5': 'Drag the empty canvas to pan and scroll to zoom; switch between Chinese and English from the top-right corner or this guide',
       'welcome.tips.6': 'Don\'t show this again only disables automatic opening; reopen the guide from the top “?” button or the Guide link in the introduction strip',
       'welcome.hide': "Don't show this again",
@@ -1339,90 +1348,149 @@ window.EVO_DATA = __DATA_JSON__;
 
   /* ================= graph: style ================= */
 
-  var STYLE = [
-    { selector: 'node', style: {
-        'label': 'data(display)',
-        'font-family': '"Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif',
-        'font-size': 14,
-        'color': '#232a36',
-        'text-wrap': 'wrap',
-        'text-max-width': '150px',
-        'text-valign': 'center',
-        'text-halign': 'center',
-        'border-width': 1.5,
-        'border-color': '#d5dae3',
-        'background-color': '#ffffff',
-        'overlay-opacity': 0,
-        'transition-property': 'opacity border-width border-color',
-        'transition-duration': 120
-    }},
-    { selector: 'node[family="term"]', style: {
-        'shape': 'round-rectangle',
-        'width': 'label', 'height': 'label', 'padding': '12px',
-        'background-color': '#edf1fc', 'border-color': '#aab9ef', 'color': '#35448e',
-        'font-size': 17, 'font-weight': 'bold', 'text-max-width': '210px'
-    }},
-    { selector: 'node[family="mapping"]', style: {
-        'shape': 'round-rectangle',
-        'width': 'label', 'height': 'label', 'padding': '8px',
-        'background-color': '#e9f5f0', 'border-color': '#9ccfbb', 'color': '#1e5c48',
-        'font-size': 14.5, 'text-max-width': '170px'
-    }},
-    { selector: 'node[family="constraint"]', style: {
-        'shape': 'hexagon', 'width': 'data(w)', 'height': 'data(h)',
-        'background-color': '#fbf3e4', 'border-color': '#ddbe8e', 'color': '#77571d',
-        'font-size': 14, 'text-max-width': '150px', 'line-height': 1.28
-    }},
-    { selector: 'node[family="evidence"]', style: {
-        'shape': 'ellipse', 'width': 'data(w)', 'height': 'data(h)',
-        'background-color': '#f1eefa', 'border-color': '#c0b4e0', 'color': '#55477c',
-        'font-size': 14, 'text-max-width': '140px', 'line-height': 1.28
-    }},
-    { selector: 'node[family="anchor"]', style: {
-        'shape': 'ellipse', 'width': 2, 'height': 2,
-        'opacity': 0, 'border-width': 0, 'label': '', 'overlay-opacity': 0,
-        'events': 'no'
-    }},
-    { selector: 'edge', style: {
-        'curve-style': 'bezier',
-        'width': 1.6,
-        'line-color': '#b9c2cf',
-        'target-arrow-shape': 'none',
-        'opacity': 0.9,
-        'font-size': 13,
-        'color': '#5d6675',
-        'text-background-color': '#f7f8fa',
-        'text-background-opacity': 0.92,
-        'text-background-padding': '2px',
-        'text-rotation': 'autorotate',
-        'transition-property': 'opacity',
-        'transition-duration': 120
-    }},
-    { selector: 'edge[family="relation"]', style: {
-        'width': 2, 'line-style': 'solid', 'line-color': '#8793aa', 'opacity': 0.92 } },
-    { selector: 'edge[family="reference"]', style: {
-        'width': 1.8, 'line-style': 'dotted', 'line-color': '#8f9bad',
-        'opacity': 0.96 } },
-    { selector: 'edge.label-on', style: { 'label': 'data(label)' } },
-    { selector: '.diff-unchanged', style: { 'opacity': 0.42 } },
-    { selector: 'node.diff-added', style: {
-        'background-color': '#e8f6ee', 'border-color': '#4f9b71', 'border-width': 3, 'opacity': 1 } },
-    { selector: 'edge.diff-added', style: {
-        'line-color': '#4f9b71', 'width': 3, 'opacity': 1 } },
-    { selector: 'node.diff-removed', style: {
-        'background-color': '#fbefed', 'border-color': '#c97869', 'border-width': 3, 'opacity': 1 } },
-    { selector: 'edge.diff-removed', style: {
-        'line-color': '#c97869', 'width': 3, 'opacity': 1 } },
-    { selector: 'node.diff-changed', style: {
-        'background-color': '#faf3e5', 'border-color': '#c6973f', 'border-width': 3, 'opacity': 1 } },
-    { selector: 'edge.diff-changed', style: {
-        'line-color': '#c6973f', 'width': 3, 'opacity': 1 } },
-    { selector: 'node:selected', style: { 'border-color': '#5563d9', 'border-width': 2.5 } },
-    { selector: 'edge:selected', style: {
-        'line-color': '#5563d9', 'width': 2.5, 'opacity': 1 } },
-    { selector: '.dim', style: { 'opacity': 0.16 } },
-    { selector: '.flash', style: { 'border-color': '#5563d9', 'border-width': 3.5 } }
-  ];
+  /* Node size: every node dimension and font is multiplied by the slider's scale.
+     Term / Mapping boxes follow their label, Constraint / Evidence use the
+     measured data(w) / data(h). The layout is always computed at 100% (see
+     atBaseNodeSize), so a larger scale makes nodes bigger within the same
+     layout instead of spreading the layout out; overlaps at the current size
+     are pushed apart afterwards. */
+  var NODE_SCALE_KEY = 'evoontology.nodeScale';
+  var NODE_SCALE_DEFAULT = 2;
+  var NODE_SCALE_MIN = 0.5;
+  var NODE_SCALE_MAX = 3;
+
+  function loadNodeScale() {
+    try {
+      var saved = parseFloat(window.localStorage.getItem(NODE_SCALE_KEY));
+      if (saved >= NODE_SCALE_MIN && saved <= NODE_SCALE_MAX) return saved;
+    } catch (e) { /* storage blocked: keep the default */ }
+    return NODE_SCALE_DEFAULT;
+  }
+
+  function saveNodeScale(scale) {
+    try { window.localStorage.setItem(NODE_SCALE_KEY, String(scale)); }
+    catch (e) { /* storage blocked: the scale lasts for this page only */ }
+  }
+
+  function px(value) { return Math.round(value) + 'px'; }
+
+  function buildStyle(s) {
+    return [
+      { selector: 'node', style: {
+          'label': 'data(display)',
+          'font-family': '"Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif',
+          'font-size': 14 * s,
+          'color': '#232a36',
+          'text-wrap': 'wrap',
+          'text-max-width': px(150 * s),
+          'text-valign': 'center',
+          'text-halign': 'center',
+          'border-width': 1.5,
+          'border-color': '#d5dae3',
+          'background-color': '#ffffff',
+          'overlay-opacity': 0,
+          'transition-property': 'opacity border-width border-color',
+          'transition-duration': 120
+      }},
+      { selector: 'node[family="term"]', style: {
+          'shape': 'round-rectangle',
+          'width': 'label', 'height': 'label', 'padding': px(12 * s),
+          'background-color': '#edf1fc', 'border-color': '#aab9ef', 'color': '#35448e',
+          'font-size': 17 * s, 'font-weight': 'bold', 'text-max-width': px(210 * s)
+      }},
+      { selector: 'node[family="mapping"]', style: {
+          'shape': 'round-rectangle',
+          'width': 'label', 'height': 'label', 'padding': px(8 * s),
+          'background-color': '#e9f5f0', 'border-color': '#9ccfbb', 'color': '#1e5c48',
+          'font-size': 14.5 * s, 'text-max-width': px(170 * s)
+      }},
+      { selector: 'node[family="constraint"]', style: {
+          'shape': 'hexagon',
+          'width': function (ele) { return ele.data('w') * s; },
+          'height': function (ele) { return ele.data('h') * s; },
+          'background-color': '#fbf3e4', 'border-color': '#ddbe8e', 'color': '#77571d',
+          'font-size': 14 * s, 'text-max-width': px(150 * s), 'line-height': 1.28
+      }},
+      { selector: 'node[family="evidence"]', style: {
+          'shape': 'ellipse',
+          'width': function (ele) { return ele.data('w') * s; },
+          'height': function (ele) { return ele.data('h') * s; },
+          'background-color': '#f1eefa', 'border-color': '#c0b4e0', 'color': '#55477c',
+          'font-size': 14 * s, 'text-max-width': px(140 * s), 'line-height': 1.28
+      }},
+      { selector: 'node[family="anchor"]', style: {
+          'shape': 'ellipse', 'width': 2, 'height': 2,
+          'opacity': 0, 'border-width': 0, 'label': '', 'overlay-opacity': 0,
+          'events': 'no'
+      }},
+      { selector: 'edge', style: {
+          'curve-style': 'bezier',
+          'width': 1.6,
+          'line-color': '#b9c2cf',
+          'target-arrow-shape': 'none',
+          'opacity': 0.9,
+          'font-size': 13 * s,
+          'color': '#5d6675',
+          'text-background-color': '#f7f8fa',
+          'text-background-opacity': 0.92,
+          'text-background-padding': '2px',
+          'text-rotation': 'autorotate',
+          'transition-property': 'opacity',
+          'transition-duration': 120
+      }},
+      { selector: 'edge[family="relation"]', style: {
+          'width': 2, 'line-style': 'solid', 'line-color': '#8793aa', 'opacity': 0.92 } },
+      { selector: 'edge[family="reference"]', style: {
+          'width': 1.8, 'line-style': 'dotted', 'line-color': '#8f9bad',
+          'opacity': 0.96 } },
+      { selector: 'edge.label-on', style: { 'label': 'data(label)' } },
+      { selector: '.diff-unchanged', style: { 'opacity': 0.42 } },
+      { selector: 'node.diff-added', style: {
+          'background-color': '#e8f6ee', 'border-color': '#4f9b71', 'border-width': 3, 'opacity': 1 } },
+      { selector: 'edge.diff-added', style: {
+          'line-color': '#4f9b71', 'width': 3, 'opacity': 1 } },
+      { selector: 'node.diff-removed', style: {
+          'background-color': '#fbefed', 'border-color': '#c97869', 'border-width': 3, 'opacity': 1 } },
+      { selector: 'edge.diff-removed', style: {
+          'line-color': '#c97869', 'width': 3, 'opacity': 1 } },
+      { selector: 'node.diff-changed', style: {
+          'background-color': '#faf3e5', 'border-color': '#c6973f', 'border-width': 3, 'opacity': 1 } },
+      { selector: 'edge.diff-changed', style: {
+          'line-color': '#c6973f', 'width': 3, 'opacity': 1 } },
+      { selector: 'node:selected', style: { 'border-color': '#5563d9', 'border-width': 2.5 } },
+      { selector: 'edge:selected', style: {
+          'line-color': '#5563d9', 'width': 2.5, 'opacity': 1 } },
+      { selector: '.dim', style: { 'opacity': 0.16 } },
+      { selector: '.flash', style: { 'border-color': '#5563d9', 'border-width': 3.5 } }
+    ];
+  }
+
+  var nodeScale = loadNodeScale();
+  var STYLE = buildStyle(nodeScale);
+
+  function showNodeScale() {
+    var percent = Math.round(nodeScale * 100);
+    var input = $('#node-size');
+    if (input) input.value = String(percent);
+    var label = $('#node-size-value');
+    if (label) label.textContent = percent + '%';
+  }
+
+  function atBaseNodeSize(graph, work) {
+    if (!graph || nodeScale === 1) { work(); return; }
+    graph.style().fromJson(buildStyle(1)).update();
+    try { work(); } finally { graph.style().fromJson(STYLE).update(); }
+  }
+
+  function applyNodeScale(scale) {
+    nodeScale = Math.min(NODE_SCALE_MAX, Math.max(NODE_SCALE_MIN, scale));
+    STYLE = buildStyle(nodeScale);
+    [cy, compareCy].forEach(function (instance) {
+      if (instance) instance.style().fromJson(STYLE).update();
+    });
+    showNodeScale();
+    saveNodeScale(nodeScale);
+  }
 
   /* ================= graph: init ================= */
 
@@ -2039,12 +2107,15 @@ window.EVO_DATA = __DATA_JSON__;
     if (!cy) return;
     var visible = cy.elements(':visible').not('node[family="anchor"]');
     if (!visible.length) return;
-    if (!layoutTermHierarchy()) {
-      visible.layout({ name: 'grid', fit: false, padding: 64, avoidOverlap: true }).run();
-    }
-    layoutSatellites();
-    layoutUnownedSatellites();
-    settleGraphGeometry();
+    atBaseNodeSize(cy, function () {
+      if (!layoutTermHierarchy()) {
+        visible.layout({ name: 'grid', fit: false, padding: 64, avoidOverlap: true }).run();
+      }
+      layoutSatellites();
+      layoutUnownedSatellites();
+      settleGraphGeometry();
+    });
+    if (nodeScale !== 1) { tidyOverlaps(); syncAnchors(); }
     if (fitAfter !== false) fitGraphToCenter(cy, 64);
   }
 
@@ -2245,6 +2316,15 @@ window.EVO_DATA = __DATA_JSON__;
     $('#btn-expand-all').addEventListener('click', expandEverything);
     $('#btn-collapse-all').addEventListener('click', collapseEverything);
     $('#btn-reset').addEventListener('click', resetView);
+    showNodeScale();
+    $('#node-size').addEventListener('input', function () {
+      applyNodeScale(Number(this.value) / 100);
+    });
+    $('#node-size').addEventListener('change', function () {
+      if (!cy) return;
+      tidyOverlaps();
+      syncAnchors();
+    });
     $all('#filters input[data-family]').forEach(function (box) {
       box.addEventListener('change', function () {
         familyVisible[box.getAttribute('data-family')] = box.checked;
