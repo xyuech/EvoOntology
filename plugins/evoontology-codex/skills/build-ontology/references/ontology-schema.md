@@ -252,7 +252,10 @@ join_keys:
   The first hop leaves a table the source Term is bound to, the last one
   arrives at a table the target Term is bound to, and each hop starts in the
   table where the previous one ended. Walk it backwards for the inverse
-  reading. `transform` is not supported yet (omit it or use null).
+  reading. A hop may carry `transform`, the name of a value conversion when
+  the two ends store the same value in different forms (for example
+  `rss_uuid`: a uuid string on one end, the same id as reordered bytes on the
+  other); convert before comparing. Omit it or use null otherwise.
 
 evidence:
   Supporting evidence

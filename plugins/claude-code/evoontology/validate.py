@@ -97,8 +97,9 @@ def _join_key_errors(
                 if not isinstance(value, str) or not value.strip():
                     errors.append(f"{where}.{side}.{key} must be a non-empty string")
             ends.append((str(end.get("source_id", "")), str(end.get("entity", ""))))
-        if hop.get("transform") is not None:
-            errors.append(f"{where}.transform is not supported yet; omit it or use null")
+        transform = hop.get("transform")
+        if transform is not None and not (isinstance(transform, str) and transform.strip()):
+            errors.append(f"{where}.transform must name the value conversion, or be omitted or null")
         hops.append(tuple(ends))
     if errors or not hops:
         return errors

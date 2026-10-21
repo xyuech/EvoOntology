@@ -194,15 +194,19 @@ def test_validate_anchors_the_path_to_both_terms(tmp_path):
     )
 
 
-def test_validate_rejects_a_transform(tmp_path):
-    relation = _copy(ALARM_ON_TRAIL)
-    relation["join_keys"][0]["transform"] = "name_to_id"
+def test_validate_accepts_a_named_transform_and_rejects_other_values(tmp_path):
+    named = _copy(ALARM_ON_TRAIL)
+    named["join_keys"][0]["transform"] = "rss_uuid"
+    malformed = _copy(ALARM_ON_TRAIL)
+    malformed["join_keys"][0]["transform"] = {"from": "uuid"}
 
-    _, errors = _errors(tmp_path, relation)
+    _, accepted = _errors(tmp_path / "named", named)
+    _, rejected = _errors(tmp_path / "malformed", malformed)
 
+    assert not any("transform" in error for error in accepted)
     assert (
-        "relation r_alarm_on_trail: join_keys[0].transform is not supported yet; "
-        "omit it or use null" in errors
+        "relation r_alarm_on_trail: join_keys[0].transform must name the value conversion, "
+        "or be omitted or null" in rejected
     )
 
 
